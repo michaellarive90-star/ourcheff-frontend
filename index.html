@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>OurCheff Test Page</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #fff9e6; color: #333; }
+    h1 { color: #dc4d42; }
+    button { padding: 8px 16px; background: #f4b400; color: #111; border: none; border-radius: 5px; cursor: pointer; }
+    pre { background: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>OurCheff Test Page</h1>
+  <p>This is a temporary test page for OurCheff. Use it to verify the backend API is reachable.</p>
+  <p>The API base URL is taken from the <code>?api=</code> query parameter.</p>
+  <button id="test">Test API</button>
+  <pre id="output"></pre>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const api = params.get('api') || window.location.origin;
+    document.getElementById('test').addEventListener('click', async () => {
+      const output = document.getElementById('output');
+      output.textContent = 'Loading...';
+      try {
+        const res = await fetch(api.replace(/\/$/, '') + '/recipes');
+        const data = await res.json();
+        output.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        output.textContent = 'Error: ' + err.message;
+      }
+    });
+  </script>
+</body>
+</html>
