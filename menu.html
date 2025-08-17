@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OurCheff Menu Builder</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #fff9e6; color: #333; }
+  header { background: #fff; padding: 15px; display:flex; align-items:center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  header h1 { margin-left: 10px; color: #c83e35; }
+  header p { margin-left: 10px; color: #555; font-style: italic; }
+  main { display: flex; padding: 20px; }
+  #recipeList { width: 35%; border-right: 1px solid #ccc; padding-right: 20px; }
+  #recipeList h2 { color:#c83e35; }
+  #recipeList ul { list-style: none; padding: 0; }
+  #recipeList li { background: #f6d365; margin-bottom: 5px; padding: 8px; cursor: pointer; border-radius: 4px; }
+  #recipeList li:hover { background: #f0c14b; }
+  #menuBuilder { width: 65%; padding-left: 20px; }
+  #menuBuilder h2 { color: #c83e35; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px; border: 1px solid #ddd; }
+  th { background: #fae7b5; }
+  .controls { margin-top: 10px; }
+  .controls button { background:#c83e35; color:#fff; border:none; padding:8px 12px; margin-right:5px; border-radius:4px; cursor:pointer; }
+  .controls button:hover { background:#a5302a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>OurCheff</h1>
+  <p>The extra F is for fun!</p>
+</header>
+<main>
+  <div id="recipeList">
+    <h2>Recipes</h2>
+    <button id="refreshRecipes">Refresh Recipes</button>
+    <ul id="recipes"></ul>
+  </div>
+  <div id="menuBuilder">
+    <h2>Menu Builder</h2>
+    <table id="menuTable">
+      <thead><tr><th>Meal #</th><th>Recipe</th><th>Servings</th><th>Labels</th><th>Remove</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="controls">
+      <button id="addMeal">Add Meal</button>
+      <button id="saveMenu">Save Menu</button>
+      <button id="loadLastMenu">Load Last Menu</button>
+      <button id="generateGroceryList">Grocery List</button>
+    </div>
+    <pre id="listOutput" style="white-space: pre-wrap; margin-top:15px;"></pre>
+  </div>
+</main>
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const API_BASE = urlParams.get('api') || '';
+let recipes = [];
+let lastMenuId = null;
+
+function fetchRecipes() {
+  if (!API_BASE) {
+    alert('API base URL not provided');
+    return;
+  }
+  fetch(API_BASE + '/recipes')
+    .then(res => res.json())
+    .then(data => {
+      recipes = data;
+      renderRecipeList();
+    })
+    .catch(err => console.error(err));
+}
+
+function renderRecipeList() {
+  const list = document.getElementById('recipes');
+  list.innerHTML = '';
+  recipes.forEach(recipe => {
+    const li = document.createElement('li');
+    li.textContent = recipe.title;
+    li.addEventListener('click', () => addRecipeToMeal(recipe));
+    list.appendChild(li);
+  });
+}
+
+function addMealRow(recipe) {
+  const tbody = document.querySelector('#menuTable tbody');
+  const row = document.createElement('tr');
+  const index = tbody.children.length + 1;
+  row.innerHTML = `
+    <td>${index}</td>
+    <td><select class="recipeSelect"></select></td>
+    <td><input type="number" class="servingsInput" value="1" min="1" style="width:60px"></td>
+    <td><input type="number" class="labelsInput" value="1" min="0" style="width:60px"></td>
+    <td><button class="removeBtn">X</button></td>`;
+  // populate select
+  const select = row.querySelector('.recipeSelect');
+  recipes.forEach(r => {
+    const option = document.createElement('option');
+    option.value = r.id;
+    option.textContent = r.title;
+    select.appendChild(option);
+  });
+  // set selected if recipe provided
+  if (recipe) {
+    select.value = recipe.id;
+  }
+  // remove action
+  row.querySelector('.removeBtn').addEventListener('click', () => {
+    row.remove();
+    updateMealNumbers();
+  });
+  tbody.appendChild(row);
+}
+
+function updateMealNumbers() {
+  const rows = document.querySelectorAll('#menuTable tbody tr');
+  rows.forEach((row, idx) => {
+    row.children[0].textContent = idx + 1;
+  });
+}
+
+function addRecipeToMeal(recipe) {
+  addMealRow(recipe);
+}
+
+function saveMenu() {
+  if (!API_BASE) { alert('API base URL missing'); return; }
+  const items = [];
+  document.querySelectorAll('#menuTable tbody tr').forEach(row => {
+    const recipeId = parseInt(row.querySelector('.recipeSelect').value);
+    const servings = parseInt(row.querySelector('.servingsInput').value);
+    const labels = parseInt(row.querySelector('.labelsInput').value);
+    items.push({ recipeId, servings, labels });
+  });
+  const body = {
+    clientId: 1,
+    date: new Date().toISOString().substring(0,10),
+    slot: 'Full',
+    items
+  };
+  fetch(API_BASE + '/menus', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  })
+    .then(res => res.json())
+    .then(data => {
+      lastMenuId = data.id;
+      alert('Menu saved with ID ' + data.id);
+    })
+    .catch(err => console.error(err));
+}
+
+function loadLastMenu() {
+  if (!lastMenuId) { alert('No menu saved yet'); return; }
+  fetch(API_BASE + '/menus/' + lastMenuId)
+    .then(res => res.json())
+    .then(menu => {
+      // clear existing
+      const tbody = document.querySelector('#menuTable tbody');
+      tbody.innerHTML = '';
+      menu.items.forEach(item => {
+        addMealRow(recipes.find(r => r.id === item.recipeId));
+        const row = tbody.lastElementChild;
+        row.querySelector('.servingsInput').value = item.servings;
+        row.querySelector('.labelsInput').value = item.labels;
+      });
+    })
+    .catch(err => console.error(err));
+}
+
+function generateGroceryList() {
+  if (!lastMenuId) { alert('Save a menu first'); return; }
+  fetch(API_BASE + '/menus/' + lastMenuId + '/grocery')
+    .then(res => res.json())
+    .then(list => {
+      const out = list.map(item => `${item.quantity} ${item.unit} ${item.name}`).join('\n');
+      document.getElementById('listOutput').textContent = out || 'No items';
+    })
+    .catch(err => console.error(err));
+}
+
+document.getElementById('addMeal').addEventListener('click', () => addMealRow());
+document.getElementById('saveMenu').addEventListener('click', saveMenu);
+document.getElementById('loadLastMenu').addEventListener('click', loadLastMenu);
+document.getElementById('generateGroceryList').addEventListener('click', generateGroceryList);
+document.getElementById('refreshRecipes').addEventListener('click', fetchRecipes);
+
+fetchRecipes();
+</script>
+</body>
+</html>
