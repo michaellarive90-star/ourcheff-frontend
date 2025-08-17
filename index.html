@@ -1,35 +1,58 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>OurCheff Test Page</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background: #fff9e6; color: #333; }
-    h1 { color: #dc4d42; }
-    button { padding: 8px 16px; background: #f4b400; color: #111; border: none; border-radius: 5px; cursor: pointer; }
-    pre { background: #fff; border: 1px solid #ddd; padding: 10px; border-radius: 5px; }
-  </style>
+<meta charset="utf-8">
+<title>OurCheff - Home</title>
+<style>
+body { font-family: Arial, sans-serif; margin:0; padding:0; background:#fff1e6; color:#222; }
+header { background:#dc4d42; padding:15px 20px; color:#fff; display:flex; align-items:center; justify-content: space-between;}
+header .brand { font-size:24px; font-weight:bold; }
+nav a { margin:0 10px; color:#fff; text-decoration:none; font-weight:500; }
+nav a:hover { text-decoration:underline; }
+main { padding:40px 20px; text-align:center; }
+.hero { max-width:800px; margin:0 auto; }
+.hero h1 { font-size:36px; margin-bottom:15px; color:#dc4d42; }
+.hero p { font-size:18px; margin-bottom:30px; }
+.btn-group a { display:inline-block; margin: 0 10px; padding:12px 24px; background:#f4b400; color:#fff; text-decoration:none; border-radius:6px; font-weight:bold; }
+.btn-group a:hover { background:#e0a600; }
+footer { background:#dc4d42; color:#fff; text-align:center; padding:10px; position:fixed; bottom:0; width:100%; }
+</style>
 </head>
 <body>
-  <h1>OurCheff Test Page</h1>
-  <p>This is a temporary test page for OurCheff. Use it to verify the backend API is reachable.</p>
-  <p>The API base URL is taken from the <code>?api=</code> query parameter.</p>
-  <button id="test">Test API</button>
-  <pre id="output"></pre>
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const api = params.get('api') || window.location.origin;
-    document.getElementById('test').addEventListener('click', async () => {
-      const output = document.getElementById('output');
-      output.textContent = 'Loading...';
-      try {
-        const res = await fetch(api.replace(/\/$/, '') + '/recipes');
-        const data = await res.json();
-        output.textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        output.textContent = 'Error: ' + err.message;
-      }
-    });
-  </script>
+<header>
+<div class="brand">OurCheff</div>
+<nav>
+<a href="#">Home</a>
+<a href="#">Menu Builder</a>
+<a href="#">Recipe Builder</a>
+<a href="#">Contact</a>
+</nav>
+</header>
+<main>
+<div class="hero">
+<h1>Welcome to OurCheff</h1>
+<p>Create personalized menus, manage recipes, and automate grocery lists with ease.</p>
+<div class="btn-group">
+<a href="#" id="goto-menu">Go to Menu Builder</a>
+<a href="#" id="goto-recipe">Create a Recipe</a>
+</div>
+<p style="margin-top:40px; font-size:14px;">This is a preview of the OurCheff platform. More features coming soon.</p>
+</div>
+</main>
+<footer>
+&copy; 2025 OurCheff. All rights reserved. The extra F is for fun!
+</footer>
+<script>
+const params = new URLSearchParams(window.location.search);
+const apiBase = params.get('api') || '';
+document.getElementById('goto-menu').addEventListener('click', function(e){
+  e.preventDefault();
+  alert('Menu builder is under construction. API base: ' + apiBase);
+});
+document.getElementById('goto-recipe').addEventListener('click', function(e){
+  e.preventDefault();
+  alert('Recipe builder is under construction. API base: ' + apiBase);
+});
+</script>
 </body>
 </html>
