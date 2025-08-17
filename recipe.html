@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OurCheff Recipe Builder</title>
+<style>
+ body { font-family: Arial,sans-serif; margin: 0; padding: 0; background: #fff9e6; color: #333; }
+ header { background:#fff; padding:15px; box-shadow:0 2px 4px rgba(0,0,0,0.1); }
+ header h1 { color:#c83e35; margin:0; }
+ main { display:flex; padding:20px; }
+ form { width:50%; padding-right:20px; }
+ form h2 { color:#c83e35; }
+ label { display:block; margin-top:8px; font-weight:bold; }
+ input[type=text], input[type=number], select, textarea { width:100%; padding:6px; margin-top:4px; border:1px solid #ccc; border-radius:4px; }
+ textarea { height:80px; }
+ button { margin-top:10px; background:#c83e35; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; }
+ button:hover { background:#a5302a; }
+ #recipeList { width:50%; border-left:1px solid #ccc; padding-left:20px; }
+ #recipeList h2 { color:#c83e35; }
+ #recipeList ul { list-style:none; padding:0; }
+ #recipeList li { background:#f6d365; margin-bottom:5px; padding:8px; cursor:pointer; border-radius:4px; }
+ #recipeList li:hover { background:#f0c14b; }
+</style>
+</head>
+<body>
+<header>
+ <h1>OurCheff Recipe Builder</h1>
+</header>
+<main>
+  <form id="recipeForm">
+    <h2>Create/Edit Recipe</h2>
+    <input type="hidden" id="recipeId" value="">
+    <label>Title</label>
+    <input type="text" id="title" required>
+    <label>Category</label>
+    <select id="category">
+      <option value="Breakfast">Breakfast</option>
+      <option value="Lunch">Lunch</option>
+      <option value="Dinner">Dinner</option>
+      <option value="Snack">Snack</option>
+      <option value="Dessert">Dessert</option>
+    </select>
+    <label>Serving Size</label>
+    <input type="number" id="servingSize" value="1" min="1">
+    <label>Ingredients (one per line: qty unit name)</label>
+    <textarea id="ingredients"></textarea>
+    <label>Instructions</label>
+    <textarea id="instructions"></textarea>
+    <h3>Macros per Serving</h3>
+    <label>Calories</label>
+    <input type="number" id="kcal" step="any">
+    <label>Protein (g)</label>
+    <input type="number" id="protein" step="any">
+    <label>Carbs (g)</label>
+    <input type="number" id="carbs" step="any">
+    <label>Fat (g)</label>
+    <input type="number" id="fat" step="any">
+    <label>Fiber (g)</label>
+    <input type="number" id="fiber" step="any">
+    <label>Sugar (g)</label>
+    <input type="number" id="sugar" step="any">
+    <label>Sodium (mg)</label>
+    <input type="number" id="sodium" step="any">
+    <button type="button" id="saveRecipe">Save Recipe</button>
+    <button type="button" id="clearForm">Clear</button>
+  </form>
+  <div id="recipeList">
+    <h2>Existing Recipes</h2>
+    <ul id="recipesUl"></ul>
+  </div>
+</main>
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const API_BASE = urlParams.get('api') || '';
+let recipes = [];
+
+function fetchRecipes() {
+  if (!API_BASE) return;
+  fetch(API_BASE + '/recipes')
+    .then(res => res.json())
+    .then(data => {
+      recipes = data;
+      renderRecipeList();
+    })
+    .catch(err => console.error(err));
+}
+
+function renderRecipeList() {
+  const ul = document.getElementById('recipesUl');
+  ul.innerHTML = '';
+  recipes.forEach(r => {
+    const li = document.createElement('li');
+    li.textContent = r.title;
+    li.addEventListener('click', () => loadRecipe(r.id));
+    ul.appendChild(li);
+  });
+}
+
+function loadRecipe(id) {
+  fetch(API_BASE + '/recipes/' + id)
+    .then(res => res.json())
+    .then(r => {
+      document.getElementById('recipeId').value = r.id;
+      document.getElementById('title').value = r.title || '';
+      document.getElementById('category').value = r.category || '';
+      document.getElementById('servingSize').value = r.servingSize || 1;
+      document.getElementById('ingredients').value = (r.ingredients || []).map(i => i.quantity + ' ' + i.unit + ' ' + i.name).join('\n');
+      document.getElementById('instructions').value = r.instructions || '';
+      const m = r.macros || {};
+      document.getElementById('kcal').value = m.kcal || '';
+      document.getElementById('protein').value = m.protein || '';
+      document.getElementById('carbs').value = m.carbs || '';
+      document.getElementById('fat').value = m.fat || '';
+      document.getElementById('fiber').value = m.fiber || '';
+      document.getElementById('sugar').value = m.sugar || '';
+      document.getElementById('sodium').value = m.sodium || '';
+    })
+    .catch(err => console.error(err));
+}
+
+function clearForm() {
+  document.getElementById('recipeId').value = '';
+  document.getElementById('title').value = '';
+  document.getElementById('category').value = 'Breakfast';
+  document.getElementById('servingSize').value = 1;
+  document.getElementById('ingredients').value = '';
+  document.getElementById('instructions').value = '';
+  document.getElementById('kcal').value = '';
+  document.getElementById('protein').value = '';
+  document.getElementById('carbs').value = '';
+  document.getElementById('fat').value = '';
+  document.getElementById('fiber').value = '';
+  document.getElementById('sugar').value = '';
+  document.getElementById('sodium').value = '';
+}
+
+function saveRecipe() {
+  if (!API_BASE) { alert('API base missing'); return; }
+  const id = document.getElementById('recipeId').value;
+  const title = document.getElementById('title').value.trim();
+  const category = document.getElementById('category').value;
+  const servingSize = parseInt(document.getElementById('servingSize').value);
+  const ingredientsText = document.getElementById('ingredients').value.trim();
+  const instructions = document.getElementById('instructions').value.trim();
+  const macros = {
+    kcal: parseFloat(document.getElementById('kcal').value) || 0,
+    protein: parseFloat(document.getElementById('protein').value) || 0,
+    carbs: parseFloat(document.getElementById('carbs').value) || 0,
+    fat: parseFloat(document.getElementById('fat').value) || 0,
+    fiber: parseFloat(document.getElementById('fiber').value) || 0,
+    sugar: parseFloat(document.getElementById('sugar').value) || 0,
+    sodium: parseFloat(document.getElementById('sodium').value) || 0
+  };
+  const ingredients = ingredientsText ? ingredientsText.split('\n').map(line => {
+    const parts = line.trim().split(' ');
+    const quantity = parseFloat(parts[0]);
+    const unit = parts[1];
+    const name = parts.slice(2).join(' ');
+    return { quantity, unit, name };
+  }) : [];
+  const body = { title, category, servingSize, ingredients, instructions, macros };
+  const method = id ? 'PUT' : 'POST';
+  const url = id ? API_BASE + '/recipes/' + id : API_BASE + '/recipes';
+  fetch(url, {
+    method,
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(body)
+  })
+    .then(res => res.json())
+    .then(data => {
+      alert('Recipe saved');
+      clearForm();
+      fetchRecipes();
+    })
+    .catch(err => console.error(err));
+}
+
+document.getElementById('saveRecipe').addEventListener('click', saveRecipe);
+document.getElementById('clearForm').addEventListener('click', clearForm);
+
+fetchRecipes();
+</script>
+</body>
+</html>
