@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OurCheff Grocery List</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff9e6;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      background: #fff;
+      padding: 15px 20px;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    header h1 {
+      margin: 0;
+      color: #dc4d42;
+      font-size: 24px;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      padding: 20px;
+    }
+    .grocery-list {
+      flex: 1;
+      min-width: 300px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      margin-right: 20px;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .grocery-list h2 {
+      margin-top: 0;
+      color: #dc4d42;
+    }
+    .grocery-item {
+      display: flex;
+      align-items: center;
+      padding: 4px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .grocery-item:last-child {
+      border-bottom: none;
+    }
+    .grocery-item input[type="checkbox"] {
+      margin-right: 8px;
+    }
+    .grocery-item span {
+      flex: 1;
+      font-size: 14px;
+    }
+    .comments {
+      width: 300px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+    .comments h2 {
+      margin-top: 0;
+      color: #dc4d42;
+    }
+    .comments textarea {
+      width: 100%;
+      height: 200px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 6px;
+      font-size: 14px;
+      resize: vertical;
+    }
+    .comments button {
+      margin-top: 10px;
+      padding: 8px 12px;
+      border: none;
+      background: #49a06e;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    @media (max-width: 768px) {
+      main {
+        flex-direction: column;
+      }
+      .grocery-list, .comments {
+        margin-right: 0;
+        margin-bottom: 20px;
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Grocery List</h1>
+  </header>
+  <main>
+    <div class="grocery-list">
+      <h2>Ingredients</h2>
+      <div id="ingredientsContainer"></div>
+    </div>
+    <div class="comments">
+      <h2>Comments</h2>
+      <textarea id="commentBox" placeholder="Add comments..."></textarea>
+      <button onclick="saveComments()">Save Comments</button>
+    </div>
+  </main>
+  <script>
+    /*
+     * OurCheff Grocery List Page
+     *
+     * This page is loaded with query parameters:
+     *   api     – base URL of the backend API (optional)
+     *   menuId  – ID of the menu to fetch ingredients from
+     *
+     * On load, it fetches the menu details and aggregates ingredients from each recipe.
+     * It then displays a list of ingredients with checkboxes. Checking an item crosses
+     * it off and dims it. A comment box allows the client to add comments relevant
+     * to this grocery list. Comments and checked states are stored in localStorage
+     * based on the menuId so they persist across sessions for this user.
+     */
+    const params = new URLSearchParams(window.location.search);
+    const API_BASE = params.get('api') || '';
+    const menuId = params.get('menuId');
+    const ingredientsContainer = document.getElementById('ingredientsContainer');
+    const commentBox = document.getElementById('commentBox');
+
+    // Load comments from localStorage
+    function loadComments() {
+      const key = `comments_${menuId}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        commentBox.value = saved;
+      }
+    }
+    // Save comments to localStorage
+    function saveComments() {
+      const key = `comments_${menuId}`;
+      localStorage.setItem(key, commentBox.value);
+      alert('Comments saved');
+    }
+    // Save checkbox states
+    function saveCheckedStates() {
+      const key = `checked_${menuId}`;
+      const states = {};
+      document.querySelectorAll('.grocery-item input[type="checkbox"]').forEach(cb => {
+        states[cb.dataset.name] = cb.checked;
+      });
+      localStorage.setItem(key, JSON.stringify(states));
+    }
+    // Load checkbox states
+    function loadCheckedStates() {
+      const key = `checked_${menuId}`;
+      const saved = localStorage.getItem(key);
+      return saved ? JSON.parse(saved) : {};
+    }
+    // Aggregate ingredients across recipes with simple unit concatenation
+    function aggregateIngredients(recipes) {
+      const map = {};
+      recipes.forEach(rec => {
+        (rec.ingredients || []).forEach(ing => {
+          const key = ing.ing.toLowerCase();
+          if (!map[key]) {
+            map[key] = { name: ing.ing, qty: parseFloat(ing.qty) || 0, unit: ing.unit };
+          } else {
+            // If same unit, add quantities; otherwise just append
+            if (map[key].unit === ing.unit) {
+              map[key].qty += parseFloat(ing.qty) || 0;
+            } else {
+              // append as string to indicate multiple units
+              map[key].qty = `${map[key].qty} ${map[key].unit} + ${ing.qty} ${ing.unit}`;
+              map[key].unit = '';
+            }
+          }
+        });
+      });
+      return Object.values(map);
+    }
+    async function fetchJson(url) {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('Network response was not ok');
+      return resp.json();
+    }
+    async function loadData() {
+      if (!menuId) {
+        ingredientsContainer.textContent = 'Missing menuId parameter.';
+        return;
+      }
+      try {
+        // Fetch the menu from backend
+        const menuUrl = `${API_BASE}/menus/${menuId}`;
+        const menu = await fetchJson(menuUrl);
+        const recipes = [];
+        // Load each recipe
+        for (const item of menu.items || []) {
+          const recId = item.recipeId;
+          const rec = await fetchJson(`${API_BASE}/recipes/${recId}`);
+          recipes.push(rec);
+        }
+        const aggregated = aggregateIngredients(recipes);
+        displayIngredients(aggregated);
+        loadComments();
+      } catch (err) {
+        console.error(err);
+        ingredientsContainer.textContent = 'Failed to load grocery list.';
+      }
+    }
+    function displayIngredients(list) {
+      ingredientsContainer.innerHTML = '';
+      const checkedStates = loadCheckedStates();
+      list.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'grocery-item';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.dataset.name = item.name;
+        cb.checked = checkedStates[item.name] || false;
+        cb.addEventListener('change', () => {
+          if (cb.checked) {
+            span.style.textDecoration = 'line-through';
+            span.style.opacity = '0.5';
+          } else {
+            span.style.textDecoration = 'none';
+            span.style.opacity = '1';
+          }
+          saveCheckedStates();
+        });
+        const span = document.createElement('span');
+        if (typeof item.qty === 'number') {
+          span.textContent = `${item.qty} ${item.unit} ${item.name}`;
+        } else {
+          span.textContent = `${item.qty} ${item.name}`;
+        }
+        if (cb.checked) {
+          span.style.textDecoration = 'line-through';
+          span.style.opacity = '0.5';
+        }
+        div.appendChild(cb);
+        div.appendChild(span);
+        ingredientsContainer.appendChild(div);
+      });
+    }
+    // On load
+    document.addEventListener('DOMContentLoaded', loadData);
+  </script>
+</body>
+</html>
