@@ -301,6 +301,15 @@
       addMeal();
     });
   </script>
+  <script>
+// ... existing functions ...
+
+function showGroceryList(menuId) {
+  // Navigate to the grocery list page, passing both menuId and the backend API URL.
+  window.location.href = `grocery.html?menuId=${menuId}&api=https://ourcheff-backend.onrender.com`;
+}
+</script>
+
 </body>
 </html>
 function showGroceryList(menuId) {
